@@ -20,29 +20,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # -------------------------------
-      # Linux / macOS: 정상 설치 가능
-      # -------------------------------
+      # Linux + macOS use official action
       - name: Install Lua (Linux/macOS)
         if: runner.os != 'Windows'
         uses: leafo/gh-actions-lua@v10
         with:
           luaVersion: "5.4"
 
-      # -------------------------------
-      # Windows: Portable Lua
-      # -------------------------------
+      # Windows uses portable Lua binary
       - name: Install Lua (Windows)
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          Invoke-WebRequest https://luabinaries.sourceforge.net/download/win64/5.4.6/lua-5.4.6_Win64_bin.zip -OutFile lua.zip
+          Invoke-WebRequest `
+            https://github.com/witchu/lua-binaries/releases/download/5.4.6/lua-5.4.6_Win64_bin.zip `
+            -OutFile lua.zip
           Expand-Archive lua.zip -DestinationPath lua
           echo "$pwd\lua" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-      # -------------------------------
-      # Run Lua script
-      # -------------------------------
       - name: Run main.lua
         run: lua src/main.lua
 
