@@ -20,14 +20,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Linux + macOS use official action
-      - name: Install Lua (Linux/macOS)
-        if: runner.os != 'Windows'
+      # -------------------------------
+      # Linux: leafo (정상 작동)
+      # -------------------------------
+      - name: Install Lua (Linux)
+        if: runner.os == 'Linux'
         uses: leafo/gh-actions-lua@v10
         with:
           luaVersion: "5.4"
 
-      # Windows uses portable Lua binary
+      # -------------------------------
+      # macOS: Portable Lua (no brew)
+      # -------------------------------
+      - name: Install Lua (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          curl -L https://www.lua.org/ftp/lua-5.4.6.tar.gz -o lua.tar.gz
+          tar -xzf lua.tar.gz
+          cd lua-5.4.6
+          make macosx test
+          echo "$(pwd)/src" >> $GITHUB_PATH
+
+      # -------------------------------
+      # Windows: Portable Lua binary
+      # -------------------------------
       - name: Install Lua (Windows)
         if: runner.os == 'Windows'
         shell: powershell
@@ -38,6 +55,9 @@ jobs:
           Expand-Archive lua.zip -DestinationPath lua
           echo "$pwd\lua" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
+      # -------------------------------
+      # Run script
+      # -------------------------------
       - name: Run main.lua
         run: lua src/main.lua
 
@@ -55,12 +75,11 @@ jobs:
           echo "Commit=$GITHUB_SHA" >> proof/proofledger.txt
           echo "Date=$(date)" >> proof/proofledger.txt
 
-      - name: Package ZIP
+      - name: ZIP
         shell: bash
-        run: |
-          zip -r Rust-like-Lua-${{ matrix.os }}.zip dist proof
+        run: zip -r Rust-like-Lua-${{ matrix.os }}.zip dist proof
 
-      - name: Upload Artifact ZIP
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rust-like-Lua-${{ matrix.os }}
