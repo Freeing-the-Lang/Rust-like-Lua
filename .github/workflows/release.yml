@@ -20,41 +20,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # -------------------------------
-      # Linux: official Lua installer
-      # -------------------------------
+      # Linux
       - name: Install Lua (Linux)
         if: runner.os == 'Linux'
         uses: leafo/gh-actions-lua@v10
         with:
           luaVersion: "5.4"
 
-      # -------------------------------
-      # macOS: official Lua installer
-      # -------------------------------
+      # macOS
       - name: Install Lua (macOS)
         if: runner.os == 'macOS'
         uses: leafo/gh-actions-lua@v10
         with:
           luaVersion: "5.4"
 
-      # -------------------------------
-      # Windows: LuaJIT portable (100% stable)
-      # -------------------------------
+      # WINDOWS: curl + LuaJIT portable
       - name: Install Lua (Windows)
         if: runner.os == 'Windows'
-        shell: powershell
+        shell: cmd
         run: |
-          Invoke-WebRequest `
-            https://github.com/LuaJIT/LuaJIT/releases/download/v2.1.0-beta3/LuaJIT-2.1.0-beta3-win64.zip `
-            -OutFile lj.zip
-          Expand-Archive lj.zip -DestinationPath lj
-          echo "$pwd\lj" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          curl -L https://github.com/LuaJIT/LuaJIT/releases/download/v2.1.0-beta3/LuaJIT-2.1.0-beta3-win64.zip -o lj.zip
+          mkdir lj
+          tar -xf lj.zip -C lj
+          echo %cd%\lj>> %GITHUB_PATH%
 
-      # -------------------------------
-      # Run script (OS 별 자동 실행)
-      # -------------------------------
-      - name: Run main.lua
+      # Run main.lua
+      - name: Run lua
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then
             luajit src/main.lua
@@ -67,18 +58,19 @@ jobs:
           mkdir dist
           cp -r src dist/
 
-      - name: Generate ProofLedger
+      - name: ProofLedger
         shell: bash
         run: |
           mkdir -p proof
           echo "Rust-like-Lua ProofLedger" > proof/proofledger.txt
           echo "OS=$RUNNER_OS" >> proof/proofledger.txt
-          echo "Commit=$GITHUB_SHA" >> proof/proofledger.txt
-          echo "Date=$(date)" >> proof/proofledger.txt
+          echo "SHA=$GITHUB_SHA" >> proof/proofledger.txt
+          echo "DATE=$(date)" >> proof/proofledger.txt
 
-      - name: Package ZIP
+      - name: ZIP
         shell: bash
-        run: zip -r Rust-like-Lua-${{ matrix.os }}.zip dist proof
+        run: |
+          zip -r Rust-like-Lua-${{ matrix.os }}.zip dist proof
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
