@@ -1,5 +1,8 @@
+package.path = "src/?.lua;" .. package.path
+
 local Lexer = require("lexer")
 local Parser = require("parser")
+local AST = require("ast")
 
 local code = "10 + 20 - 5"
 
@@ -15,5 +18,4 @@ end
 local ps = Parser.new(tokens)
 local ast = ps:parse_expr()
 
-print("AST OK:")
-print(ast.tag, ast.op)
+print("AST OK")
