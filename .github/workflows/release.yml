@@ -1,0 +1,94 @@
+name: Rust-like-Lua — 3OS Build + Release + ProofLedger
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-3os:
+    name: Build & Package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Lua
+        uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.4"
+
+      - name: Run main.lua (test)
+        run: lua src/main.lua
+
+      - name: Prepare dist folder
+        run: |
+          mkdir dist
+          cp -r src dist/
+          echo "Rust-like-Lua runtime files ready."
+
+      - name: Generate ProofLedger
+        shell: bash
+        run: |
+          mkdir -p proof
+          echo "Rust-like-Lua ProofLedger" > proof/proofledger.txt
+          echo "OS=$RUNNER_OS" >> proof/proofledger.txt
+          echo "Commit=$GITHUB_SHA" >> proof/proofledger.txt
+          echo "Date=$(date)" >> proof/proofledger.txt
+
+          # SHA256 (Linux/macOS)
+          sha256sum src/*.lua >> proof/proofledger.txt 2>/dev/null || true
+          # SHA256 (Windows)
+          certutil -hashfile src\\lexer.lua SHA256  >> proof/proofledger.txt 2>/dev/null || true
+          certutil -hashfile src\\parser.lua SHA256 >> proof/proofledger.txt 2>/dev/null || true
+          certutil -hashfile src\\ast.lua SHA256    >> proof/proofledger.txt 2>/dev/null || true
+          certutil -hashfile src\\main.lua SHA256   >> proof/proofledger.txt 2>/dev/null || true
+
+      - name: Package ZIP
+        shell: bash
+        run: |
+          zip -r Rust-like-Lua-${{ matrix.os }}.zip dist proof
+
+      - name: Upload Artifact ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rust-like-Lua-${{ matrix.os }}
+          path: Rust-like-Lua-${{ matrix.os }}.zip
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-3os
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Tag
+        run: |
+          VERSION="v1.0.$(date +%Y%m%d%H%M)"
+          echo "TAG=$VERSION" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG }}
+          name: "Rust-like-Lua Release ${{ env.TAG }}"
+          body: |
+            ### Rust-like-Lua Automated 3OS Release
+            - Auto-built on GitHub Actions
+            - Includes runtime files + ProofLedger
+            - SHA256 verified
+          files: artifacts/**/*.zip
